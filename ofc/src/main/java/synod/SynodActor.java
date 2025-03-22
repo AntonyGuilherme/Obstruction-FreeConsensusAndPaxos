@@ -3,13 +3,9 @@ package synod;
 import akka.actor.ActorRef;
 import commom.actors.Actor;
 import commom.actors.IdentityGenerator;
-import synod.messages.Abort;
-import synod.messages.Gather;
-import synod.messages.Proposal;
-import synod.messages.Read;
+import synod.messages.*;
 
-import java.util.LinkedList;
-import java.util.List;
+import java.util.*;
 
 public class SynodActor extends Actor {
     private int id = IdentityGenerator.generateIdentity();
@@ -23,13 +19,14 @@ public class SynodActor extends Actor {
     private final List<ActorRef> processes = new LinkedList<>();
 
     public SynodActor() {
-        run(this::onReceiveSynodProcess).when(m -> m instanceof ActorRef);
+        run(this::onSynodProcess).when(m -> m instanceof ActorRef);
         run(this::onProposal).when(m -> m instanceof Proposal);
-        run(this::onReceiveRead).when(m -> m instanceof Read);
-        run(this::onReceiveAbort).when(m -> m instanceof Abort);
+        run(this::onRead).when(m -> m instanceof Read);
+        run(this::onAbort).when(m -> m instanceof Abort);
+        run(this::onGather).when(m -> m instanceof Gather);
     }
 
-    public void onReceiveSynodProcess(Object synodProcessRef, ActorContext context) {
+    public void onSynodProcess(Object synodProcessRef, ActorContext context) {
         processes.add((ActorRef) synodProcessRef);
     }
 
@@ -47,7 +44,7 @@ public class SynodActor extends Actor {
         }
     }
 
-    private void onReceiveRead(Object message, ActorContext context) {
+    private void onRead(Object message, ActorContext context) {
         startImposeBallotIfNeeded();
         Read read = (Read) message;
 
@@ -60,8 +57,29 @@ public class SynodActor extends Actor {
         }
     }
 
-    private void onReceiveAbort(Object abort, ActorContext context) {
+    private void onAbort(Object abort, ActorContext context) {
         currentProposal.sender.tell(abort, getSelf());
+    }
+
+    private void onGather(Object message, ActorContext context) {
+        Gather gather = (Gather) message;
+        currentProposal.gathers.put(context.sender().path().name(), gather);
+
+        if (currentProposal.gathers.size() > processes.size()/2) {
+            int proposal = currentProposal.proposal.value();
+
+            List<Gather> gathers = new ArrayList<>(currentProposal.gathers.values().stream().toList());
+            if (gathers.stream().anyMatch(g -> g.imposeBallot() > 0)) {
+                gathers.sort(Comparator.comparingInt(Gather::imposeBallot));
+                proposal = gathers.getLast().estimate();
+            }
+
+            currentProposal.gathers.clear();
+
+            for (ActorRef process : processes) {
+                process.tell(new Impose(ballot, proposal), getSelf());
+            }
+        }
     }
 
     private void startBallotIfNeeded() {
@@ -79,6 +97,7 @@ public class SynodActor extends Actor {
     class CurrentProposal {
         public Proposal proposal;
         public ActorRef sender;
+        public final Map<String, Gather> gathers = new HashMap<>();
 
         public CurrentProposal(Proposal proposal, ActorRef sender) {
             this.proposal = proposal;

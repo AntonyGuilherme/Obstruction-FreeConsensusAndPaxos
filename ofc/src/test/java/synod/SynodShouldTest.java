@@ -8,11 +8,9 @@ import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
-import synod.messages.Abort;
-import synod.messages.Gather;
-import synod.messages.Proposal;
-import synod.messages.Read;
+import synod.messages.*;
 
+import java.util.List;
 import java.util.stream.Stream;
 
 public class SynodShouldTest {
@@ -132,6 +130,56 @@ public class SynodShouldTest {
         Abort abort = (Abort) messages.toList().getFirst();
 
         Assert.assertEquals(1, abort.ballot());
+    }
+
+    @Test
+    public void whenAccumulateGathersAProcessShouldImpose() throws InterruptedException {
+        ActorRef synod = system.actorOf(Props.create(SynodActor.class, SynodActor::new), "synod");
+        ActorRef wiretap = system.actorOf(Props.create(WiretapActor.class, WiretapActor::new), "wiretap0");
+        ActorRef wiretap1 = system.actorOf(Props.create(WiretapActor.class, WiretapActor::new), "wiretap1");
+
+        synod.tell(wiretap, ActorRef.noSender());
+        synod.tell(wiretap1, ActorRef.noSender());
+        synod.tell(synod, ActorRef.noSender());
+        Thread.sleep(50);
+
+        synod.tell(new Proposal(1), wiretap);
+        Thread.sleep(50);
+
+        synod.tell(new Gather(0, -3, -1), wiretap);
+        Thread.sleep(50);
+
+        List<Object> messages = WiretapActor.messages.stream().filter(m -> m instanceof Impose).toList();
+        Impose impose = (Impose) messages.getFirst();
+
+        Assert.assertEquals(2, messages.size());
+        Assert.assertEquals(0, impose.ballot());
+        Assert.assertEquals(1, impose.value());
+    }
+
+    @Test
+    public void whenAccumulateGathersAProcessShouldImposeTheGreaterKnownProposal() throws InterruptedException {
+        ActorRef synod = system.actorOf(Props.create(SynodActor.class, SynodActor::new), "synod");
+        ActorRef wiretap = system.actorOf(Props.create(WiretapActor.class, WiretapActor::new), "wiretap0");
+        ActorRef wiretap1 = system.actorOf(Props.create(WiretapActor.class, WiretapActor::new), "wiretap1");
+
+        synod.tell(wiretap, ActorRef.noSender());
+        synod.tell(wiretap1, ActorRef.noSender());
+        synod.tell(synod, ActorRef.noSender());
+        Thread.sleep(50);
+
+        synod.tell(new Proposal(1), wiretap);
+        Thread.sleep(50);
+
+        synod.tell(new Gather(0, 42, 0), wiretap);
+        Thread.sleep(100);
+
+        List<Object> messages = WiretapActor.messages.stream().filter(m -> m instanceof Impose).toList();
+        Impose impose = (Impose) messages.getFirst();
+
+        Assert.assertEquals(2, messages.size());
+        Assert.assertEquals(0, impose.ballot());
+        Assert.assertEquals(0, impose.value());
     }
 
     @After

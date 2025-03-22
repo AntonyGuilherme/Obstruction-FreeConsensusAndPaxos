@@ -1,5 +1,6 @@
 package synod;
 
+import akka.actor.AbstractActor;
 import akka.actor.ActorRef;
 import commom.actors.Actor;
 import commom.actors.IdentityGenerator;
@@ -8,7 +9,7 @@ import synod.messages.*;
 import java.util.*;
 
 public class SynodActor extends Actor {
-    private int id = IdentityGenerator.generateIdentity();
+    private final int id = IdentityGenerator.generateIdentity();
     private int ballot = Integer.MIN_VALUE;
 
     private CurrentProposal currentProposal;
@@ -19,12 +20,21 @@ public class SynodActor extends Actor {
     private final List<ActorRef> processes = new LinkedList<>();
 
     public SynodActor() {
+        run(this::log);
         run(this::onSynodProcess).when(m -> m instanceof ActorRef);
         run(this::onProposal).when(m -> m instanceof Proposal);
         run(this::onRead).when(m -> m instanceof Read);
         run(this::onAbort).when(m -> m instanceof Abort);
         run(this::onGather).when(m -> m instanceof Gather);
         run(this::onImpose).when(m -> m instanceof Impose);
+        run(this::onAcknowledge).when(m -> m instanceof Acknowledge);
+    }
+
+    private void log(Object message, AbstractActor.ActorContext context) {
+        String from = context.sender().path().name();
+        String to = context.self().path().name();
+
+        System.out.printf("from %s to %s : %s%n", from, to, message);
     }
 
     public void onSynodProcess(Object synodProcessRef, ActorContext context) {
@@ -91,6 +101,15 @@ public class SynodActor extends Actor {
             estimate = impose.value();
             imposeBallot = impose.ballot();
             context.sender().tell(new Acknowledge(impose.ballot()), getSelf());
+        }
+    }
+
+    private void onAcknowledge(Object message, ActorContext context) {
+        Acknowledge ack = (Acknowledge) message;
+
+        if (currentProposal != null) {
+            currentProposal.sender.tell(new Decide(estimate), getSelf());
+            currentProposal = null;
         }
     }
 

@@ -49,13 +49,13 @@ public class SynodShouldTest {
         synod.tell(wiretap, ActorRef.noSender());
         synod.tell(wiretap1, ActorRef.noSender());
         synod.tell(synod, ActorRef.noSender());
-        Thread.sleep(50);
+        Thread.sleep(100);
 
         synod.tell(new Proposal(1), wiretap);
-        Thread.sleep(50);
+        Thread.sleep(100);
 
         synod.tell(new Proposal(1), wiretap);
-        Thread.sleep(50);
+        Thread.sleep(100);
 
         Assert.assertEquals(4, WiretapActor.messages.size());
         Assert.assertEquals(2, WiretapActor.messages.stream().filter(m -> ((Read)m).ballot() == 3).count());
@@ -141,13 +141,13 @@ public class SynodShouldTest {
         synod.tell(wiretap, ActorRef.noSender());
         synod.tell(wiretap1, ActorRef.noSender());
         synod.tell(synod, ActorRef.noSender());
-        Thread.sleep(50);
+        Thread.sleep(100);
 
         synod.tell(new Proposal(1), wiretap);
-        Thread.sleep(50);
+        Thread.sleep(100);
 
         synod.tell(new Gather(0, -3, -1), wiretap);
-        Thread.sleep(50);
+        Thread.sleep(100);
 
         List<Object> messages = WiretapActor.messages.stream().filter(m -> m instanceof Impose).toList();
         Impose impose = (Impose) messages.getFirst();
@@ -166,10 +166,10 @@ public class SynodShouldTest {
         synod.tell(wiretap, ActorRef.noSender());
         synod.tell(wiretap1, ActorRef.noSender());
         synod.tell(synod, ActorRef.noSender());
-        Thread.sleep(50);
+        Thread.sleep(100);
 
         synod.tell(new Proposal(1), wiretap);
-        Thread.sleep(50);
+        Thread.sleep(100);
 
         synod.tell(new Gather(0, 42, 0), wiretap);
         Thread.sleep(100);
@@ -243,6 +243,30 @@ public class SynodShouldTest {
 
         Assert.assertEquals(1, messages.size());
         Assert.assertEquals(0, abort.ballot());
+    }
+
+    @Test
+    public void whenReceiveAcknowledgeAProcessShouldDecide() throws InterruptedException {
+        ActorRef synod = system.actorOf(Props.create(SynodActor.class, SynodActor::new), "synod");
+        ActorRef synod2 = system.actorOf(Props.create(SynodActor.class, SynodActor::new), "synod2");
+        ActorRef wire = system.actorOf(Props.create(WiretapActor.class, WiretapActor::new), "wire");
+
+        synod.tell(synod2, ActorRef.noSender());
+        synod.tell(synod, ActorRef.noSender());
+        synod.tell(wire, ActorRef.noSender());
+        synod2.tell(synod2, ActorRef.noSender());
+        synod2.tell(synod, ActorRef.noSender());
+        synod2.tell(wire, ActorRef.noSender());
+        Thread.sleep(50);
+
+        synod.tell(new Proposal(0), wire);
+        Thread.sleep(100);
+
+        List<Object> messages = WiretapActor.messages.stream().filter(m -> m instanceof Decide).toList();
+        Decide decide = (Decide) messages.getFirst();
+
+        Assert.assertEquals(1, messages.size());
+        Assert.assertEquals(0, decide.value());
     }
 
     @After

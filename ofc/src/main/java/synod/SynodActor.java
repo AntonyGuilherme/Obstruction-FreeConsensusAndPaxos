@@ -24,6 +24,7 @@ public class SynodActor extends Actor {
         run(this::onRead).when(m -> m instanceof Read);
         run(this::onAbort).when(m -> m instanceof Abort);
         run(this::onGather).when(m -> m instanceof Gather);
+        run(this::onImpose).when(m -> m instanceof Impose);
     }
 
     public void onSynodProcess(Object synodProcessRef, ActorContext context) {
@@ -79,6 +80,17 @@ public class SynodActor extends Actor {
             for (ActorRef process : processes) {
                 process.tell(new Impose(ballot, proposal), getSelf());
             }
+        }
+    }
+
+    private void onImpose(Object message, ActorContext context) {
+        Impose impose = (Impose) message;
+        if (readBallot > impose.ballot() || imposeBallot > impose.ballot())
+            context.sender().tell(new Abort(impose.ballot()), getSelf());
+        else {
+            estimate = impose.value();
+            imposeBallot = impose.ballot();
+            context.sender().tell(new Acknowledge(impose.ballot()), getSelf());
         }
     }
 

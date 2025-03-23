@@ -1,5 +1,6 @@
 package synod;
 
+import akka.actor.AbstractActor;
 import commom.actors.Actor;
 
 import java.util.LinkedList;
@@ -11,5 +12,14 @@ public class WiretapActor extends Actor {
 
     public WiretapActor() {
         run((message, _) -> messages.add(message));
+        run(this::log);
+
+    }
+
+    private void log(Object message, AbstractActor.ActorContext context) {
+        String from = context.sender().path().name();
+        String to = context.self().path().name();
+
+        System.out.printf("from %s to %s : %s%n", from, to, message);
     }
 }

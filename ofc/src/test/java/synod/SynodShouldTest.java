@@ -109,6 +109,27 @@ public class SynodShouldTest {
     }
 
     @Test
+    public void whenReceiveReadRequestWithABallotWorseThanItsImposedBallotProcessShouldAnswerAbort() throws InterruptedException {
+        ActorRef synod = system.actorOf(Props.create(SynodActor.class, SynodActor::new), "synod");
+        ActorRef wiretap = system.actorOf(Props.create(WiretapActor.class, WiretapActor::new), "wiretap");
+
+        synod.tell(wiretap, ActorRef.noSender());
+        synod.tell(synod, ActorRef.noSender());
+        Thread.sleep(50);
+
+        synod.tell(new Impose(10, 1), wiretap);
+        Thread.sleep(50);
+
+        synod.tell(new Read(9), wiretap);
+        Thread.sleep(50);
+
+        Stream<Object> messages = WiretapActor.messages.stream().filter(m -> m instanceof Abort);
+        Abort abort = (Abort) messages.toList().getFirst();
+
+        Assert.assertEquals(9, abort.ballot());
+    }
+
+    @Test
     public void whenReceiveAbortProcessShouldAnswerAbortToTheProposal() throws InterruptedException {
         ActorRef synod = system.actorOf(Props.create(SynodActor.class, SynodActor::new), "synod");
         ActorRef wiretap = system.actorOf(Props.create(WiretapActor.class, WiretapActor::new), "wiretap");

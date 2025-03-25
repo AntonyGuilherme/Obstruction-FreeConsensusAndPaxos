@@ -20,7 +20,7 @@ public class SynodActor extends Actor {
     private final List<ActorRef> processes = new LinkedList<>();
 
     public SynodActor() {
-        run(this::log);
+//      run(this::log);
         run(this::onSynodProcess).when(m -> m instanceof ActorRef);
         run(this::onProposal).when(m -> m instanceof Proposal);
         run(this::onRead).when(m -> m instanceof Read);
@@ -59,7 +59,7 @@ public class SynodActor extends Actor {
         startImposeBallotIfNeeded();
         Read read = (Read) message;
 
-        if (readBallot > read.ballot()) {
+        if (readBallot > read.ballot() || imposeBallot > read.ballot()) {
             context.sender().tell(new Abort(read.ballot()), getSelf());
         }
         else {
@@ -69,7 +69,10 @@ public class SynodActor extends Actor {
     }
 
     private void onAbort(Object abort, ActorContext context) {
-        currentProposal.sender.tell(abort, getSelf());
+        if (currentProposal != null) {
+            currentProposal.sender.tell(abort, getSelf());
+            currentProposal = null;
+        }
     }
 
     private void onGather(Object message, ActorContext context) {

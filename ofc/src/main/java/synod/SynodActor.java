@@ -41,7 +41,7 @@ public class SynodActor extends Actor {
         processes.add((ActorRef) synodProcessRef);
     }
 
-    protected void onProposal(Object message, ActorContext context) {
+    private void onProposal(Object message, ActorContext context) {
         startBallotIfNeeded();
 
         Proposal proposal = (Proposal) message;

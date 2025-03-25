@@ -6,7 +6,6 @@ import synod.messages.Gather;
 import synod.messages.Proposal;
 
 import java.util.HashMap;
-import java.util.LinkedList;
 import java.util.Map;
 
 public class ProposalState {
@@ -19,13 +18,13 @@ public class ProposalState {
 
     public final Map<String, Acknowledge> acknowledgements =  new HashMap<>();
 
-    public ProposalState(Proposal proposal, ActorRef sender) {
-        this.ballot = 1;
+    public ProposalState(Proposal proposal, ActorRef sender, int ballot) {
+        this.ballot = ballot;
         this.proposal = proposal;
         this.sender = sender;
     }
 
-    public boolean accumulateGather(ActorRef process, Gather gather, int numberOfProcesses) {
+    public boolean GathersReachQuorum(ActorRef process, Gather gather, int numberOfProcesses) {
         if (this.gathers.size() > (numberOfProcesses/2))
             return false;
 
@@ -38,7 +37,7 @@ public class ProposalState {
         return this.gathers.size() > (numberOfProcesses/2);
     }
 
-    public boolean accumulateAcknowledgements(ActorRef process, Acknowledge acknowledge, int numberOfProcesses) {
+    public boolean acknowledgementsReachQuorum(ActorRef process, Acknowledge acknowledge, int numberOfProcesses) {
         if (this.acknowledgements.size() > (numberOfProcesses/2))
             return false;
 

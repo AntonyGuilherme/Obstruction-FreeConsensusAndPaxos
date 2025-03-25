@@ -45,9 +45,10 @@ public class SynodActor extends Actor {
         startBallotIfNeeded();
 
         Proposal proposal = (Proposal) message;
-        currentProposal = new ProposalState(proposal, context.getSender());
 
         ballot += processes.size();
+
+        currentProposal = new ProposalState(proposal, context.getSender(), ballot);
         Read read = new Read(ballot);
 
         for (ActorRef process : processes) {
@@ -78,7 +79,10 @@ public class SynodActor extends Actor {
     private void onGather(Object message, ActorContext context) {
         Gather gather = (Gather) message;
 
-        if (currentProposal.accumulateGather(context.sender(), gather, processes.size())) {
+        if (currentProposal == null || currentProposal.ballot != gather.ballot())
+            return;
+
+        if (currentProposal.GathersReachQuorum(context.sender(), gather, processes.size())) {
             int proposal = currentProposal.proposal.value();
             Gather greatherGather = currentProposal.getGreaterGather();
 
@@ -105,7 +109,7 @@ public class SynodActor extends Actor {
     private void onAcknowledge(Object message, ActorContext context) {
         Acknowledge ack = (Acknowledge) message;
 
-        if (currentProposal != null && currentProposal.accumulateAcknowledgements(context.sender(), ack, processes.size())) {
+        if (currentProposal != null && currentProposal.acknowledgementsReachQuorum(context.sender(), ack, processes.size())) {
             currentProposal.sender.tell(new Decide(estimate), getSelf());
             currentProposal = null;
         }

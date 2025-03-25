@@ -321,7 +321,24 @@ public class SynodShouldTest {
         synod.tell(new Proposal(0), wire);
         Thread.sleep(100);
 
-        Assert.assertFalse(WiretapActor.messages.stream().anyMatch(m -> m instanceof Decide));
+        Assert.assertFalse(WiretapActor.messages.stream().anyMatch(m -> m instanceof Impose));
+    }
+
+    @Test
+    public void whenAProcessReceiveAGathersOfADifferentBallotItShouldNotBeConsidered() throws InterruptedException {
+        ActorRef synod = system.actorOf(Props.create(SynodActor.class, SynodActor::new), "synod");
+        ActorRef synod2 = system.actorOf(Props.create(SynodActor.class, SynodActor::new), "synod1");
+        ActorRef wire = system.actorOf(Props.create(WiretapActor.class, WiretapActor::new), "wire");
+        ActorRef wire1 = system.actorOf(Props.create(WiretapActor.class, WiretapActor::new), "wire1");
+
+        tellEveryoneAboutEachOther(synod, synod2, wire, wire1);
+        Thread.sleep(50);
+
+        synod.tell(new Proposal(0), wire);
+        synod.tell(new Gather(42, -3, -1), wire);
+        Thread.sleep(100);
+
+        Assert.assertFalse(WiretapActor.messages.stream().anyMatch(m -> m instanceof Impose));
     }
 
     private void tellEveryoneAboutEachOther(ActorRef... processes) {

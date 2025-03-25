@@ -12,7 +12,7 @@ public class SynodActor extends Actor {
     private final int id = IdentityGenerator.generateIdentity();
     private int ballot = Integer.MIN_VALUE;
 
-    private ProposalState currentProposal;
+    protected ProposalState currentProposal;
     private int readBallot = Integer.MIN_VALUE;
     private int imposeBallot = Integer.MIN_VALUE;
     private int estimate = -1;
@@ -20,7 +20,7 @@ public class SynodActor extends Actor {
     private final List<ActorRef> processes = new LinkedList<>();
 
     public SynodActor() {
-//      run(this::log);
+        run(this::log).when(m -> m instanceof Proposal);
         run(this::onSynodProcess).when(m -> m instanceof ActorRef);
         run(this::onProposal).when(m -> m instanceof Proposal);
         run(this::onRead).when(m -> m instanceof Read);
@@ -37,11 +37,11 @@ public class SynodActor extends Actor {
         System.out.printf("from %s to %s : %s%n", from, to, message);
     }
 
-    public void onSynodProcess(Object synodProcessRef, ActorContext context) {
+    private void onSynodProcess(Object synodProcessRef, ActorContext context) {
         processes.add((ActorRef) synodProcessRef);
     }
 
-    private void onProposal(Object message, ActorContext context) {
+    protected void onProposal(Object message, ActorContext context) {
         startBallotIfNeeded();
 
         Proposal proposal = (Proposal) message;
@@ -69,7 +69,7 @@ public class SynodActor extends Actor {
         }
     }
 
-    private void onAbort(Object message, ActorContext context) {
+    protected void onAbort(Object message, ActorContext context) {
         Abort abort = (Abort) message;
 
         if (currentProposal != null && currentProposal.ballot == abort.ballot()) {
@@ -116,7 +116,7 @@ public class SynodActor extends Actor {
             return;
 
         if (currentProposal.acknowledgementsReachQuorum(context.sender(), ack, processes.size())) {
-            currentProposal.sender.tell(new Decide(estimate), getSelf());
+            currentProposal.sender.tell(new Decide(estimate, currentProposal.ballot), getSelf());
             currentProposal = null;
         }
     }

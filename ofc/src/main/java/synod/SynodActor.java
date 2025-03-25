@@ -69,8 +69,10 @@ public class SynodActor extends Actor {
         }
     }
 
-    private void onAbort(Object abort, ActorContext context) {
-        if (currentProposal != null) {
+    private void onAbort(Object message, ActorContext context) {
+        Abort abort = (Abort) message;
+
+        if (currentProposal != null && currentProposal.ballot == abort.ballot()) {
             currentProposal.sender.tell(abort, getSelf());
             currentProposal = null;
         }
@@ -97,6 +99,7 @@ public class SynodActor extends Actor {
 
     private void onImpose(Object message, ActorContext context) {
         Impose impose = (Impose) message;
+
         if (readBallot > impose.ballot() || imposeBallot > impose.ballot())
             context.sender().tell(new Abort(impose.ballot()), getSelf());
         else {
@@ -109,7 +112,10 @@ public class SynodActor extends Actor {
     private void onAcknowledge(Object message, ActorContext context) {
         Acknowledge ack = (Acknowledge) message;
 
-        if (currentProposal != null && currentProposal.acknowledgementsReachQuorum(context.sender(), ack, processes.size())) {
+        if (currentProposal == null || currentProposal.ballot != ack.ballot())
+            return;
+
+        if (currentProposal.acknowledgementsReachQuorum(context.sender(), ack, processes.size())) {
             currentProposal.sender.tell(new Decide(estimate), getSelf());
             currentProposal = null;
         }

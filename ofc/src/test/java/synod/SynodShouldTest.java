@@ -19,7 +19,6 @@ public class SynodShouldTest {
     @Before
     public void setUp() {
         this.system = ActorSystem.create("messagesSystem");
-        IdentityGenerator.clear();
     }
 
     @Test
@@ -134,23 +133,19 @@ public class SynodShouldTest {
         ActorRef synod = system.actorOf(Props.create(SynodActor.class, SynodActor::new), "synod");
         ActorRef wiretap = system.actorOf(Props.create(WiretapActor.class, WiretapActor::new), "wiretap");
 
-        synod.tell(wiretap, ActorRef.noSender());
-        synod.tell(synod, ActorRef.noSender());
+        tellEveryoneAboutEachOther(synod, wiretap);
         Thread.sleep(50);
 
         synod.tell(new Proposal(1), wiretap);
         Thread.sleep(50);
 
-        synod.tell(new Read(42), wiretap);
-        Thread.sleep(50);
-
-        synod.tell(new Abort(1), wiretap);
-        Thread.sleep(50);
+        synod.tell(new Abort(0), wiretap);
+        Thread.sleep(100);
 
         Stream<Object> messages = WiretapActor.messages.stream().filter(m -> m instanceof Abort);
         Abort abort = (Abort) messages.toList().getFirst();
 
-        Assert.assertEquals(1, abort.ballot());
+        Assert.assertEquals(0, abort.ballot());
     }
 
     @Test
@@ -325,7 +320,7 @@ public class SynodShouldTest {
     }
 
     @Test
-    public void whenAProcessReceiveAGathersOfADifferentBallotItShouldNotBeConsidered() throws InterruptedException {
+    public void whenAProcessReceiveAGatherOfADifferentBallotItShouldNotBeConsidered() throws InterruptedException {
         ActorRef synod = system.actorOf(Props.create(SynodActor.class, SynodActor::new), "synod");
         ActorRef synod2 = system.actorOf(Props.create(SynodActor.class, SynodActor::new), "synod1");
         ActorRef wire = system.actorOf(Props.create(WiretapActor.class, WiretapActor::new), "wire");
@@ -341,6 +336,54 @@ public class SynodShouldTest {
         Assert.assertFalse(WiretapActor.messages.stream().anyMatch(m -> m instanceof Impose));
     }
 
+    @Test
+    public void whenAProcessReceiveAnAcknowledgementOfADifferentBallotItShouldNotBeConsidered() throws InterruptedException {
+        ActorRef synod = system.actorOf(Props.create(SynodActor.class, SynodActor::new), "synod");
+        ActorRef synod2 = system.actorOf(Props.create(SynodActor.class, SynodActor::new), "synod1");
+        ActorRef wire = system.actorOf(Props.create(WiretapActor.class, WiretapActor::new), "wire");
+        ActorRef wire1 = system.actorOf(Props.create(WiretapActor.class, WiretapActor::new), "wire1");
+
+        tellEveryoneAboutEachOther(synod, synod2, wire, wire1);
+        Thread.sleep(50);
+
+        synod.tell(new Proposal(0), wire);
+        Thread.sleep(100);
+
+        synod.tell(new Gather(0, -3, -1), wire);
+        Thread.sleep(100);
+
+        synod.tell(new Acknowledge(42), wire);
+        Thread.sleep(100);
+
+        Assert.assertFalse(WiretapActor.messages.stream().anyMatch(m -> m instanceof Decide));
+    }
+
+    @Test
+    public void whenAProcessReceiveAnAbortOfADifferentBallotItShouldNotBeConsidered() throws InterruptedException {
+        ActorRef synod = system.actorOf(Props.create(SynodActor.class, SynodActor::new), "synod");
+        ActorRef synod2 = system.actorOf(Props.create(SynodActor.class, SynodActor::new), "synod1");
+        ActorRef wire = system.actorOf(Props.create(WiretapActor.class, WiretapActor::new), "wire");
+        ActorRef wire1 = system.actorOf(Props.create(WiretapActor.class, WiretapActor::new), "wire1");
+
+        tellEveryoneAboutEachOther(synod, synod2, wire, wire1);
+        Thread.sleep(50);
+
+        synod.tell(new Proposal(0), wire);
+        Thread.sleep(100);
+
+        synod.tell(new Gather(0, -3, -1), wire);
+        Thread.sleep(100);
+
+        synod.tell(new Abort(10), wire);
+        Thread.sleep(100);
+
+        synod.tell(new Acknowledge(0), wire);
+        Thread.sleep(100);
+
+        Assert.assertFalse(WiretapActor.messages.stream().anyMatch(m -> m instanceof Abort));
+        Assert.assertTrue(WiretapActor.messages.stream().anyMatch(m -> m instanceof Decide));
+    }
+
     private void tellEveryoneAboutEachOther(ActorRef... processes) {
         for (ActorRef target : processes) {
             for (ActorRef other : processes) {
@@ -353,5 +396,6 @@ public class SynodShouldTest {
     public void tearDown() {
         this.system.terminate();
         WiretapActor.messages.clear();
+        IdentityGenerator.clear();
     }
 }

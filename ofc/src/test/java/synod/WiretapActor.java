@@ -7,13 +7,16 @@ import java.util.LinkedList;
 import java.util.List;
 
 public class WiretapActor extends Actor {
-
     public static final List<Object> messages =  new LinkedList<>();
 
     public WiretapActor() {
-        run((message, _) -> messages.add(message));
+        run(WiretapActor::add);
         run(this::log);
 
+    }
+
+    public static synchronized void add(Object message, AbstractActor.ActorContext context) {
+        messages.add(message);
     }
 
     private void log(Object message, AbstractActor.ActorContext context) {

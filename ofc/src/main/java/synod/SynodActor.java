@@ -12,7 +12,7 @@ public class SynodActor extends Actor {
     private final int id = IdentityGenerator.generateIdentity();
     private int ballot = Integer.MIN_VALUE;
 
-    private CurrentProposal currentProposal;
+    private ProposalState currentProposal;
     private int readBallot = Integer.MIN_VALUE;
     private int imposeBallot = Integer.MIN_VALUE;
     private int estimate = -1;
@@ -45,7 +45,7 @@ public class SynodActor extends Actor {
         startBallotIfNeeded();
 
         Proposal proposal = (Proposal) message;
-        currentProposal = new CurrentProposal(proposal, context.getSender());
+        currentProposal = new ProposalState(proposal, context.getSender());
 
         ballot += processes.size();
         Read read = new Read(ballot);
@@ -111,8 +111,12 @@ public class SynodActor extends Actor {
         Acknowledge ack = (Acknowledge) message;
 
         if (currentProposal != null) {
-            currentProposal.sender.tell(new Decide(estimate), getSelf());
-            currentProposal = null;
+            currentProposal.acknowledgements.add(ack);
+
+            if (currentProposal.acknowledgements.size() > (processes.size()/2)) {
+                currentProposal.sender.tell(new Decide(estimate), getSelf());
+                currentProposal = null;
+            }
         }
     }
 
@@ -125,17 +129,6 @@ public class SynodActor extends Actor {
     private void startImposeBallotIfNeeded() {
         if (imposeBallot == Integer.MIN_VALUE) {
             imposeBallot = this.id - processes.size();
-        }
-    }
-
-    class CurrentProposal {
-        public Proposal proposal;
-        public ActorRef sender;
-        public final Map<String, Gather> gathers = new HashMap<>();
-
-        public CurrentProposal(Proposal proposal, ActorRef sender) {
-            this.proposal = proposal;
-            this.sender = sender;
         }
     }
 }

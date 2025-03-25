@@ -267,7 +267,7 @@ public class SynodShouldTest {
     }
 
     @Test
-    public void whenReceiveAcknowledgeAProcessShouldDecide() throws InterruptedException {
+    public void whenReceiveAQuorumOfAcknowledgementsAProcessShouldDecide() throws InterruptedException {
         ActorRef synod = system.actorOf(Props.create(SynodActor.class, SynodActor::new), "synod");
         ActorRef synod2 = system.actorOf(Props.create(SynodActor.class, SynodActor::new), "synod2");
         ActorRef wire = system.actorOf(Props.create(WiretapActor.class, WiretapActor::new), "wire");
@@ -288,6 +288,48 @@ public class SynodShouldTest {
 
         Assert.assertEquals(1, messages.size());
         Assert.assertEquals(0, decide.value());
+    }
+
+    @Test
+    public void whenAProcessDoNotReceiveAQuorumOfAcknowledgementsItShouldNotDecide() throws InterruptedException {
+        ActorRef synod = system.actorOf(Props.create(SynodActor.class, SynodActor::new), "synod");
+        ActorRef synod2 = system.actorOf(Props.create(SynodActor.class, SynodActor::new), "synod1");
+        ActorRef wire = system.actorOf(Props.create(WiretapActor.class, WiretapActor::new), "wire");
+        ActorRef wire1 = system.actorOf(Props.create(WiretapActor.class, WiretapActor::new), "wire1");
+
+        tellEveryoneAboutEachOther(synod, synod2, wire, wire1);
+        Thread.sleep(50);
+
+        synod.tell(new Proposal(0), wire);
+        Thread.sleep(50);
+        synod.tell(new Gather(0, -3, -1), wire);
+        Thread.sleep(100);
+
+        Assert.assertFalse(WiretapActor.messages.stream().anyMatch(m -> m instanceof Decide));
+    }
+
+    @Test
+    public void whenAProcessDoNotReceiveAQuorumOfGathersItShouldNotImpose() throws InterruptedException {
+        ActorRef synod = system.actorOf(Props.create(SynodActor.class, SynodActor::new), "synod");
+        ActorRef synod2 = system.actorOf(Props.create(SynodActor.class, SynodActor::new), "synod1");
+        ActorRef wire = system.actorOf(Props.create(WiretapActor.class, WiretapActor::new), "wire");
+        ActorRef wire1 = system.actorOf(Props.create(WiretapActor.class, WiretapActor::new), "wire1");
+
+        tellEveryoneAboutEachOther(synod, synod2, wire, wire1);
+        Thread.sleep(50);
+
+        synod.tell(new Proposal(0), wire);
+        Thread.sleep(100);
+
+        Assert.assertFalse(WiretapActor.messages.stream().anyMatch(m -> m instanceof Decide));
+    }
+
+    private void tellEveryoneAboutEachOther(ActorRef... processes) {
+        for (ActorRef target : processes) {
+            for (ActorRef other : processes) {
+                target.tell(other, ActorRef.noSender());
+            }
+        }
     }
 
     @After

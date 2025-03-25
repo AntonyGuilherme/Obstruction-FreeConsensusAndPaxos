@@ -13,12 +13,41 @@ public class ProposalState {
     public final int ballot;
     public final Proposal proposal;
     public final ActorRef sender;
+
     public final Map<String, Gather> gathers = new HashMap<>();
-    public LinkedList<Acknowledge> acknowledgements =  new LinkedList<>();
+    private Gather greaterGather = null;
+
+    public final Map<String, Acknowledge> acknowledgements =  new HashMap<>();
 
     public ProposalState(Proposal proposal, ActorRef sender) {
         this.ballot = 1;
         this.proposal = proposal;
         this.sender = sender;
+    }
+
+    public boolean accumulateGather(ActorRef process, Gather gather, int numberOfProcesses) {
+        if (this.gathers.size() > (numberOfProcesses/2))
+            return false;
+
+        this.gathers.put(process.path().name(), gather);
+
+        if(greaterGather == null || greaterGather.imposeBallot() < gather.imposeBallot()) {
+            greaterGather = gather;
+        }
+
+        return this.gathers.size() > (numberOfProcesses/2);
+    }
+
+    public boolean accumulateAcknowledgements(ActorRef process, Acknowledge acknowledge, int numberOfProcesses) {
+        if (this.acknowledgements.size() > (numberOfProcesses/2))
+            return false;
+
+        this.acknowledgements.put(process.path().name(), acknowledge);
+
+        return this.acknowledgements.size() > (numberOfProcesses/2);
+    }
+
+    public Gather getGreaterGather() {
+        return greaterGather;
     }
 }

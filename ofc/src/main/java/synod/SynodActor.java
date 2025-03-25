@@ -77,18 +77,13 @@ public class SynodActor extends Actor {
 
     private void onGather(Object message, ActorContext context) {
         Gather gather = (Gather) message;
-        currentProposal.gathers.put(context.sender().path().name(), gather);
 
-        if (currentProposal.gathers.size() > processes.size()/2) {
+        if (currentProposal.accumulateGather(context.sender(), gather, processes.size())) {
             int proposal = currentProposal.proposal.value();
+            Gather greatherGather = currentProposal.getGreaterGather();
 
-            List<Gather> gathers = new ArrayList<>(currentProposal.gathers.values().stream().toList());
-            if (gathers.stream().anyMatch(g -> g.imposeBallot() > 0)) {
-                gathers.sort(Comparator.comparingInt(Gather::imposeBallot));
-                proposal = gathers.getLast().estimate();
-            }
-
-            currentProposal.gathers.clear();
+            if (greatherGather.imposeBallot() > 0)
+                proposal = greatherGather.estimate();
 
             for (ActorRef process : processes) {
                 process.tell(new Impose(ballot, proposal), getSelf());
@@ -110,13 +105,9 @@ public class SynodActor extends Actor {
     private void onAcknowledge(Object message, ActorContext context) {
         Acknowledge ack = (Acknowledge) message;
 
-        if (currentProposal != null) {
-            currentProposal.acknowledgements.add(ack);
-
-            if (currentProposal.acknowledgements.size() > (processes.size()/2)) {
-                currentProposal.sender.tell(new Decide(estimate), getSelf());
-                currentProposal = null;
-            }
+        if (currentProposal != null && currentProposal.accumulateAcknowledgements(context.sender(), ack, processes.size())) {
+            currentProposal.sender.tell(new Decide(estimate), getSelf());
+            currentProposal = null;
         }
     }
 

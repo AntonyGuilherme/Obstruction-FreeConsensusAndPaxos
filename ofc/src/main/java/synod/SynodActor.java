@@ -20,7 +20,7 @@ public class SynodActor extends Actor {
     private final List<ActorRef> processes = new LinkedList<>();
 
     public SynodActor() {
-        run(this::log).when(m -> m instanceof Proposal);
+        //run(this::log).when(m -> m instanceof Proposal);
         run(this::onSynodProcess).when(m -> m instanceof ActorRef);
         run(this::onProposal).when(m -> m instanceof Proposal);
         run(this::onRead).when(m -> m instanceof Read);

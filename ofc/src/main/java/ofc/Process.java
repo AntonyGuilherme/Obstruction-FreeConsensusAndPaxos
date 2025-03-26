@@ -1,6 +1,8 @@
 package ofc;
 
 import akka.actor.ActorRef;
+import ofc.messages.Crash;
+import ofc.messages.Hold;
 import ofc.messages.Launch;
 import synod.SynodActor;
 import synod.messages.Abort;
@@ -9,11 +11,29 @@ import synod.messages.Proposal;
 public class Process extends SynodActor {
     private int value = 0;
     private ActorRef sender;
+    private boolean crashed = false;
+    private boolean held = false;
 
     public Process() {
         super();
-
         run(this::onLaunch).when(m -> m instanceof Launch);
+        run(this::onCrash).when(m -> m instanceof Crash);
+        run(this::onHold).when(m -> m instanceof Hold);
+    }
+
+    @Override
+    public void onReceive(Object message) throws Throwable {
+        if (!crashed && !(held && message instanceof Proposal))
+            super.onReceive(message);
+    }
+
+    private void onHold(Object message, ActorContext context) {
+        held = true;
+    }
+
+    private void onCrash(Object message, ActorContext context) {
+        Crash crash = (Crash) message;
+        crashed = Math.random() <= crash.probability();
     }
 
     private void onLaunch(Object message, ActorContext context) {

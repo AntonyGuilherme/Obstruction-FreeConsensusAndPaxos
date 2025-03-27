@@ -4,23 +4,26 @@ import akka.actor.AbstractActor;
 import akka.actor.ActorRef;
 import commom.actors.Actor;
 import commom.actors.IdentityGenerator;
+import commom.actors.LatencyVerifier;
 import synod.messages.*;
 
 import java.util.*;
 
 public class SynodActor extends Actor {
     private final int id = IdentityGenerator.generateIdentity();
-    private int ballot = Integer.MIN_VALUE;
+    protected int ballot = Integer.MIN_VALUE;
+    private boolean hasDecided = false;
+    private ActorRef sender;
 
     protected ProposalState currentProposal;
     private int readBallot = Integer.MIN_VALUE;
     private int imposeBallot = Integer.MIN_VALUE;
-    private int estimate = -1;
+    private int estimate = -30;
 
     private final List<ActorRef> processes = new LinkedList<>();
 
     public SynodActor() {
-        //run(this::log).when(m -> m instanceof Proposal);
+        //run(this::log);
         run(this::onSynodProcess).when(m -> m instanceof ActorRef);
         run(this::onProposal).when(m -> m instanceof Proposal);
         run(this::onRead).when(m -> m instanceof Read);
@@ -43,13 +46,15 @@ public class SynodActor extends Actor {
     }
 
     private void onProposal(Object message, ActorContext context) {
+        LatencyVerifier.setStart(self().path().name());
         startBallotIfNeeded();
 
         Proposal proposal = (Proposal) message;
 
         ballot += processes.size();
 
-        currentProposal = new ProposalState(proposal, context.getSender(), ballot);
+        currentProposal = new ProposalState(proposal);
+        sender = sender();
         Read read = new Read(ballot);
 
         for (ActorRef process : processes) {
@@ -73,8 +78,8 @@ public class SynodActor extends Actor {
     protected void onAbort(Object message, ActorContext context) {
         Abort abort = (Abort) message;
 
-        if (currentProposal != null && currentProposal.ballot == abort.ballot()) {
-            currentProposal.sender.tell(abort, getSelf());
+        if (currentProposal != null && ballot == abort.ballot()) {
+            sender.tell(abort, getSelf());
             currentProposal = null;
         }
     }
@@ -82,7 +87,7 @@ public class SynodActor extends Actor {
     private void onGather(Object message, ActorContext context) {
         Gather gather = (Gather) message;
 
-        if (currentProposal == null || currentProposal.ballot != gather.ballot())
+        if (currentProposal == null || ballot != gather.ballot())
             return;
 
         if (currentProposal.GathersReachQuorum(context.sender(), gather, processes.size())) {
@@ -113,26 +118,30 @@ public class SynodActor extends Actor {
     private void onAcknowledge(Object message, ActorContext context) {
         Acknowledge ack = (Acknowledge) message;
 
-        if (currentProposal == null || currentProposal.ballot != ack.ballot())
+        if (currentProposal == null || ballot != ack.ballot())
             return;
 
         if (currentProposal.acknowledgementsReachQuorum(context.sender(), ack, processes.size())) {
             for (ActorRef process : processes) {
-                process.tell(new Decide(estimate, currentProposal.ballot), getSelf());
+                process.tell(new Decide(estimate, ballot), getSelf());
             }
+
+            onDecide(new Decide(estimate, ballot), context);
         }
     }
 
     private void onDecide(Object message, ActorContext context) {
-        if (currentProposal != null) {
+        if (!hasDecided && sender != null) {
+            LatencyVerifier.setEnd(self().path().name());
             Decide decide = (Decide) message;
 
             for (ActorRef process : processes) {
                 process.tell(decide, getSelf());
             }
 
-            currentProposal.sender.tell(message, getSelf());
+            sender.tell(message, getSelf());
             currentProposal = null;
+            hasDecided = true;
         }
     }
 

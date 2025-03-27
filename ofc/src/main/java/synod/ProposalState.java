@@ -9,19 +9,15 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class ProposalState {
-    public final int ballot;
     public final Proposal proposal;
-    public final ActorRef sender;
 
     public final Map<String, Gather> gathers = new HashMap<>();
     private Gather greaterGather = null;
 
     public final Map<String, Acknowledge> acknowledgements =  new HashMap<>();
 
-    public ProposalState(Proposal proposal, ActorRef sender, int ballot) {
-        this.ballot = ballot;
+    public ProposalState(Proposal proposal) {
         this.proposal = proposal;
-        this.sender = sender;
     }
 
     public boolean GathersReachQuorum(ActorRef process, Gather gather, int numberOfProcesses) {

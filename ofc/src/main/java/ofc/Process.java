@@ -50,8 +50,7 @@ public class Process extends SynodActor {
     protected void onAbort(Object message, ActorContext context) {
         Abort abort = (Abort) message;
 
-        if (currentProposal != null && currentProposal.ballot == abort.ballot()) {
-            //currentProposal.sender.tell(abort, getSelf());
+        if (currentProposal != null && ballot == abort.ballot()) {
             self().tell(new Proposal(value), sender);
             currentProposal = null;
         }

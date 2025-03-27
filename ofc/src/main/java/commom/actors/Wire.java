@@ -14,12 +14,7 @@ public class Wire extends Actor {
 
     public Wire() {
         run(Wire::add);
-        run(Wire::onDecide).when(m -> m instanceof Decide);
         run(this::log);
-    }
-
-    private static void onDecide(Object message, ActorContext context) {
-        times.put(context.sender().path().name(), System.currentTimeMillis());
     }
 
     public static synchronized void add(Object message, AbstractActor.ActorContext context) {

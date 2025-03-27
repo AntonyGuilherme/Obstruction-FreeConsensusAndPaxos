@@ -1,36 +1,55 @@
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import akka.actor.Props;
-import commom.actors.Wire;
+import commom.actors.*;
 import ofc.Process;
 import ofc.messages.Crash;
 import ofc.messages.Hold;
 import ofc.messages.Launch;
 
+import java.io.IOException;
 import java.util.*;
 
 public class Experiments {
-    public static final int numberOfProcesses = 100;
-    public static final int numberOfProcessesThatMayFail = 49;
-    public static final float probabilityOfFail = 0.4f;
-    static final int timeUntilElect = 400;
+    public static final int[] numberOfProcesses = {3, 10, 100};
+    public static final int[] numberOfProcessesThatMayFail = {1, 4, 49};
+    public static final float[] probabilityOfFail = {0, 0.1f, 1};
+    static final int[] timeUntilElect = {500, 1000, 1500, 2000};
 
-    public static void main(String[] args) throws InterruptedException {
+    public static void main(String[] args) throws InterruptedException, IOException {
+        List<Result> results = new LinkedList<>();
+
+        for (int i = 0; i < numberOfProcesses.length; i++) {
+           for (float fail : probabilityOfFail) {
+                for (int time : timeUntilElect) {
+                    Result result = run(numberOfProcesses[i], numberOfProcessesThatMayFail[i], fail, time);
+                    results.add(result);
+                }
+            }
+        }
+
+        ResultsWriter.write(results);
+    }
+
+    private static Result run(int numberOfProcesses, int numberOfProcessesThatMayFail,
+                              float probabilityOfFail, int timeUntilElect) throws InterruptedException {
+        LatencyVerifier.clear();
+        Wire.messages.clear();
+        IdentityGenerator.clear();
+
         final ActorSystem system = ActorSystem.create("messagesSystem");
         final ActorRef wire = system.actorOf(Props.create(Wire.class, Wire::new), "wire");
-        final Map<String, Long> times = new HashMap<>();
 
         final List<ActorRef> processes = new ArrayList<>(numberOfProcesses);
 
         for (int i = 0; i < numberOfProcesses; i++)
-            processes.add(system.actorOf(Props.create(ofc.Process.class, Process::new), String.format("process%d", i)));
+            processes.add(system.actorOf(Props.create(Process.class, Process::new), String.format("process%d", i)));
 
         tellEveryoneAboutEachOther(processes);
-        Thread.sleep(100);
+        Thread.sleep(1000);
 
         for (int i = 0; i < numberOfProcesses; i++) {
             processes.get(i).tell(new Launch(), wire);
-            times.put(processes.get(i).path().name(), System.currentTimeMillis());
         }
 
         Collections.shuffle(processes);
@@ -50,9 +69,20 @@ public class Experiments {
         Thread.sleep(1000);
         system.terminate();
 
-        for (String process : Wire.times.keySet()) {
-            System.out.format("%s takes %d milliseconds to decide\n", process, Wire.times.get(process) - times.get(process));
+        for (String process : LatencyVerifier.start.keySet()) {
+            if (LatencyVerifier.end.containsKey(process))
+                System.out.format("%s takes %s milliseconds to decide\n", process,
+                        (LatencyVerifier.end.get(process) - LatencyVerifier.start.get(process)) / Math.pow(10, 6));
         }
+
+        List<String> ends = new ArrayList<>(LatencyVerifier.end.keySet());
+
+        ends.sort(Comparator.comparing(LatencyVerifier.end::get));
+
+        float latency = LatencyVerifier.end.get(ends.getFirst()) - LatencyVerifier.start.get(ends.getFirst());
+        latency = (float) (latency / Math.pow(10, 6));
+
+        return new Result(numberOfProcesses, numberOfProcessesThatMayFail, probabilityOfFail, timeUntilElect, latency);
     }
 
     private static void tellEveryoneAboutEachOther(List<ActorRef> processes) {

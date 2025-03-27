@@ -281,7 +281,7 @@ public class SynodShouldTest {
         List<Object> messages = WiretapActor.messages.stream().filter(m -> m instanceof Decide).toList();
         Decide decide = (Decide) messages.getFirst();
 
-        Assert.assertEquals(1, messages.size());
+        Assert.assertEquals(3, messages.size());
         Assert.assertEquals(0, decide.value());
     }
 
@@ -382,6 +382,47 @@ public class SynodShouldTest {
 
         Assert.assertFalse(WiretapActor.messages.stream().anyMatch(m -> m instanceof Abort));
         Assert.assertTrue(WiretapActor.messages.stream().anyMatch(m -> m instanceof Decide));
+    }
+
+    @Test
+    public void whenAProcessDecideItShouldInformDecideToEveryOtherKnowProcess() throws InterruptedException {
+        ActorRef synod = system.actorOf(Props.create(SynodActor.class, SynodActor::new), "synod");
+        ActorRef synod1 = system.actorOf(Props.create(SynodActor.class, SynodActor::new), "synod1");
+        ActorRef synod2 = system.actorOf(Props.create(SynodActor.class, SynodActor::new), "synod2");
+        ActorRef wire = system.actorOf(Props.create(WiretapActor.class, WiretapActor::new), "wire");
+        ActorRef wire1 = system.actorOf(Props.create(WiretapActor.class, WiretapActor::new), "wire1");
+
+        tellEveryoneAboutEachOther(synod, synod1, synod2, wire1);
+        Thread.sleep(50);
+
+        synod.tell(new Proposal(0), wire);
+        Thread.sleep(100);
+
+        Assert.assertEquals(3, WiretapActor.messages.stream().filter(m -> m instanceof Decide).count());
+    }
+
+    @Test
+    public void whenAProcessReceiveADecideItShouldDecideIfThereIsAProposal() throws InterruptedException {
+        ActorRef synod = system.actorOf(Props.create(SynodActor.class, SynodActor::new), "synod");
+        ActorRef wire = system.actorOf(Props.create(WiretapActor.class, WiretapActor::new), "wire");
+        ActorRef wire1 = system.actorOf(Props.create(WiretapActor.class, WiretapActor::new), "wire1");
+
+        tellEveryoneAboutEachOther(synod, wire1);
+        Thread.sleep(50);
+
+        synod.tell(new Proposal(0), wire);
+        Thread.sleep(100);
+
+        synod.tell(new Gather(0, -3, -1), wire1);
+        Thread.sleep(100);
+
+        synod.tell(new Decide(2, 42), wire1);
+        Thread.sleep(100);
+
+        var decides = WiretapActor.messages.stream().filter(m -> m instanceof Decide).toList();
+        Assert.assertEquals(2, decides.size());
+        Assert.assertEquals(2, ((Decide)decides.getFirst()).value());
+        Assert.assertEquals(42, ((Decide)decides.getFirst()).ballot());
     }
 
     private void tellEveryoneAboutEachOther(ActorRef... processes) {

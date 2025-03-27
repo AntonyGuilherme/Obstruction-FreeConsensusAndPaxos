@@ -28,6 +28,7 @@ public class SynodActor extends Actor {
         run(this::onGather).when(m -> m instanceof Gather);
         run(this::onImpose).when(m -> m instanceof Impose);
         run(this::onAcknowledge).when(m -> m instanceof Acknowledge);
+        run(this::onDecide).when(m -> m instanceof Decide);
     }
 
     private void log(Object message, AbstractActor.ActorContext context) {
@@ -116,7 +117,21 @@ public class SynodActor extends Actor {
             return;
 
         if (currentProposal.acknowledgementsReachQuorum(context.sender(), ack, processes.size())) {
-            currentProposal.sender.tell(new Decide(estimate, currentProposal.ballot), getSelf());
+            for (ActorRef process : processes) {
+                process.tell(new Decide(estimate, currentProposal.ballot), getSelf());
+            }
+        }
+    }
+
+    private void onDecide(Object message, ActorContext context) {
+        if (currentProposal != null) {
+            Decide decide = (Decide) message;
+
+            for (ActorRef process : processes) {
+                process.tell(decide, getSelf());
+            }
+
+            currentProposal.sender.tell(message, getSelf());
             currentProposal = null;
         }
     }

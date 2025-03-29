@@ -91,6 +91,7 @@ public class Experiments {
                 averageLatency += LatencyVerifier.end.get(process) - LatencyVerifier.start.get(process);
 
             averageLatency = averageLatency / LatencyVerifier.end.keySet().size();
+            averageLatency = (float) (averageLatency / Math.pow(10, 6));
 
             measures.add(new LatencyMeasure(latency, averageLatency));
         }

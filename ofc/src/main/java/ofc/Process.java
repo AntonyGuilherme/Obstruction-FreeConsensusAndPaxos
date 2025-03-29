@@ -43,7 +43,7 @@ public class Process extends SynodActor {
         Proposal proposal = new Proposal(value);
         sender = context.sender();
 
-        self().tell(proposal, sender);
+        onProposal(proposal, context);
     }
 
     @Override

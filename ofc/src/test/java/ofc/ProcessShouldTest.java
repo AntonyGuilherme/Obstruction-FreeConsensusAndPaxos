@@ -96,10 +96,29 @@ public class ProcessShouldTest {
 
         process.tell(new Hold(), wire);
         Thread.sleep(50);
-        process.tell(new Launch(), wire);
+        process.tell(new Proposal(10), wire);
         Thread.sleep(100);
 
         Assert.assertEquals(0, WiretapActor.messages.size());
+    }
+
+    @Test
+    public void whenAProcessReceivesAHoldWhileIsInProposalStateItShouldFinishItLastsProposal() throws InterruptedException {
+        ActorRef process = system.actorOf(Props.create(Process.class, Process::new), "process0");
+        ActorRef process1 = system.actorOf(Props.create(Process.class, Process::new), "process1");
+        ActorRef process2 = system.actorOf(Props.create(Process.class, Process::new), "process2");
+
+        ActorRef wire = system.actorOf(Props.create(WiretapActor.class, WiretapActor::new), "wire");
+
+        tellEveryoneAboutEachOther(process, process1, process2);
+        Thread.sleep(100);
+
+        Thread.sleep(50);
+        process.tell(new Launch(), wire);
+        process.tell(new Hold(), wire);
+        Thread.sleep(100);
+
+        Assert.assertEquals(1, WiretapActor.messages.size());
     }
 
     private void tellEveryoneAboutEachOther(ActorRef... processes) {

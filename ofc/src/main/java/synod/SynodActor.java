@@ -45,7 +45,7 @@ public class SynodActor extends Actor {
         processes.add((ActorRef) synodProcessRef);
     }
 
-    private void onProposal(Object message, ActorContext context) {
+    protected void onProposal(Object message, ActorContext context) {
         LatencyVerifier.setStart(self().path().name());
         startBallotIfNeeded();
 

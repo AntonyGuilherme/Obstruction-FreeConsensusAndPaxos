@@ -16,6 +16,7 @@ public class Process extends SynodActor {
 
     public Process() {
         super();
+        // The basic idea of this is to run a method when a type of message arrives
         run(this::onLaunch).when(m -> m instanceof Launch);
         run(this::onCrash).when(m -> m instanceof Crash);
         run(this::onHold).when(m -> m instanceof Hold);
@@ -23,6 +24,8 @@ public class Process extends SynodActor {
 
     @Override
     public void onReceive(Object message) throws Throwable {
+        // If a process receive is crashed it should not answer any message
+        // If a process is in hold it should not process any other proposal
         if (!crashed && !(held && message instanceof Proposal))
             super.onReceive(message);
     }
@@ -32,11 +35,13 @@ public class Process extends SynodActor {
     }
 
     private void onCrash(Object message, ActorContext context) {
+        // The process just crashes if the probability reaches a certain level
         Crash crash = (Crash) message;
         crashed = Math.random() <= crash.probability();
     }
 
     private void onLaunch(Object message, ActorContext context) {
+        // The proposal should be randomly 0 or 1
         if (Math.random() > 0.5)
             value = 1;
 
@@ -50,7 +55,11 @@ public class Process extends SynodActor {
     protected void onAbort(Object message, ActorContext context) {
         Abort abort = (Abort) message;
 
+        // Ity just abort if a proposal is running and
+        // if the ballot meets the ballot of the message
         if (currentProposal != null && ballot == abort.ballot()) {
+            // adding a new proposal
+            // The idea is to propose until it reaches consensus
             self().tell(new Proposal(value), sender);
             currentProposal = null;
         }

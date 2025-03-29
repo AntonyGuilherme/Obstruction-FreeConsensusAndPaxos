@@ -37,6 +37,7 @@ public class Experiments {
         List<LatencyMeasure> measures = new LinkedList<>();
 
         for (int w = 0; w < 5; w++) {
+            // cleaning all states to every experiment to be executed in the same initial state
             LatencyVerifier.clear();
             Wire.messages.clear();
             IdentityGenerator.clear();
@@ -46,46 +47,55 @@ public class Experiments {
 
             final List<ActorRef> processes = new ArrayList<>(numberOfProcesses);
 
+            // adding the processes to the system
             for (int i = 0; i < numberOfProcesses; i++)
                 processes.add(system.actorOf(Props.create(Process.class, Process::new), String.format("process%d", i)));
 
+            // informing all processes of each other
             tellEveryoneAboutEachOther(processes);
+            // awaiting to ensure that every process received the address to the other ones before
+            // the proposals starts
             Thread.sleep(1000);
 
+            // starting the proposals
             for (int i = 0; i < numberOfProcesses; i++) {
                 processes.get(i).tell(new Launch(), wire);
             }
 
+            // sorting randomly the list of processes
+            // to fail randomly some of them
             Collections.shuffle(processes);
 
+            // crashing some of the processes
             for (int i = 0; i < numberOfProcessesThatMayFail; i++)
                 processes.get(i).tell(new Crash(probabilityOfFail), ActorRef.noSender());
 
+            // awaiting the election
             Thread.sleep(timeUntilElect);
             System.out.printf("Election starts %s\n", processes.get(numberOfProcessesThatMayFail).path().name());
 
+            // putting almost every process in hold
+            // only one of them will keep proposing
             for (int i = 0; i < numberOfProcessesThatMayFail; i++)
                 processes.get(i).tell(new Hold(), ActorRef.noSender());
 
             for (int i = numberOfProcessesThatMayFail + 1; i < numberOfProcesses; i++)
                 processes.get(i).tell(new Hold(), ActorRef.noSender());
 
+            // waiting until all the chit-chat ends
             Thread.sleep(1000);
             system.terminate();
 
-            for (String process : LatencyVerifier.start.keySet()) {
-                if (LatencyVerifier.end.containsKey(process))
-                    System.out.format("%s takes %s milliseconds to decide\n", process,
-                            (LatencyVerifier.end.get(process) - LatencyVerifier.start.get(process)) / Math.pow(10, 6));
-            }
-
             List<String> ends = new ArrayList<>(LatencyVerifier.end.keySet());
 
+            // ordering by ending date (the ones that ends first is placed first)
             ends.sort(Comparator.comparing(LatencyVerifier.end::get));
 
+            // latency of the first process that decides
             float latency = LatencyVerifier.end.get(ends.getFirst()) - LatencyVerifier.start.get(ends.getFirst());
             latency = (float) (latency / Math.pow(10, 6));
 
+            // calculating the average latency
             float averageLatency = 0;
             for (String process : LatencyVerifier.end.keySet())
                 averageLatency += LatencyVerifier.end.get(process) - LatencyVerifier.start.get(process);

@@ -15,11 +15,18 @@ public class ResultsWriter {
 
         for (Result result : results) {
             ObjectNode experiment = json.addObject();
-            experiment.put("numberOfProcesses", result.numberOfProcess());
-            experiment.put("numberOfProcessesThatMayFail", result.numberOfProcessThatMayFail());
-            experiment.put("probabilityOfFail", result.probabilityOfFail());
-            experiment.put("timeUntilElection", result.timeUntilElection());
-            experiment.put("latency", result.latency());
+            experiment.put("numberOfProcess", result.numberOfProcess());
+            experiment.put("numberOfFaultyProcesses", result.numberOfProcessThatMayFail());
+            experiment.put("failureProb", result.probabilityOfFail());
+            experiment.put("leaderElectionTime", result.timeUntilElection());
+
+            ArrayNode measures = experiment.putArray("results");
+
+            for (LatencyMeasure measure : result.latency()) {
+                ObjectNode measureObj = measures.addObject();
+                measureObj.put("consensusLatency", measure.latency());
+                measureObj.put("averageLatency", measure.averageLatency());
+            }
         }
 
         objectMapper.writeValue(new File("results.json"), json);

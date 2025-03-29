@@ -1,8 +1,10 @@
 package commom.actors;
 
+import java.util.List;
+
 public record Result(int numberOfProcess,
                      int numberOfProcessThatMayFail,
                      float probabilityOfFail,
                      int timeUntilElection,
-                     float latency) {
+                     List<LatencyMeasure> latency) {
 }

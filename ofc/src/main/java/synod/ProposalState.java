@@ -9,35 +9,35 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class ProposalState {
-    public final int ballot;
     public final Proposal proposal;
-    public final ActorRef sender;
 
     public final Map<String, Gather> gathers = new HashMap<>();
     private Gather greaterGather = null;
 
     public final Map<String, Acknowledge> acknowledgements =  new HashMap<>();
 
-    public ProposalState(Proposal proposal, ActorRef sender, int ballot) {
-        this.ballot = ballot;
+    public ProposalState(Proposal proposal) {
         this.proposal = proposal;
-        this.sender = sender;
     }
 
-    public boolean GathersReachQuorum(ActorRef process, Gather gather, int numberOfProcesses) {
+    public boolean gathersReachQuorum(ActorRef process, Gather gather, int numberOfProcesses) {
         if (this.gathers.size() > (numberOfProcesses/2))
             return false;
 
         this.gathers.put(process.path().name(), gather);
 
+        // updating the greater gather
+        // this is easier to understand than verifying a list in the end
         if(greaterGather == null || greaterGather.imposeBallot() < gather.imposeBallot()) {
             greaterGather = gather;
         }
 
+        // verifying if the quorum was reached
         return this.gathers.size() > (numberOfProcesses/2);
     }
 
     public boolean acknowledgementsReachQuorum(ActorRef process, Acknowledge acknowledge, int numberOfProcesses) {
+        // consider if the quorum was not reached before
         if (this.acknowledgements.size() > (numberOfProcesses/2))
             return false;
 

@@ -12,11 +12,10 @@
         </encoder>
     </appender>
 
-    <logger name="akka" level="INFO"/>
-    <logger name="com.typesafe.akka" level="INFO"/>
+    <logger name="akka" level="WARNING"/>
+    <logger name="com.typesafe.akka" level="WARNING"/>
 
-    <root level="INFO">
-        <appender-ref ref="CONSOLE"/>
+    <root level="WARNING">
         <appender-ref ref="FILE"/>
     </root>
 </configuration>

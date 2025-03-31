@@ -2,6 +2,8 @@ package synod;
 
 import akka.actor.AbstractActor;
 import akka.actor.ActorRef;
+import akka.event.Logging;
+import akka.event.LoggingAdapter;
 import commom.actors.Actor;
 import commom.actors.IdentityGenerator;
 import commom.actors.LatencyVerifier;
@@ -19,11 +21,12 @@ public class SynodActor extends Actor {
     private int readBallot = Integer.MIN_VALUE;
     private int imposeBallot = Integer.MIN_VALUE;
     private int estimate = -30;
+    LoggingAdapter logger = Logging.getLogger(getContext().system(), this.getClass());
 
     private final List<ActorRef> processes = new LinkedList<>();
 
     public SynodActor() {
-        //run(this::log);
+        run(this::log).when(m -> m instanceof Proposal);
         run(this::onSynodProcess).when(m -> m instanceof ActorRef);
         run(this::onProposal).when(m -> m instanceof Proposal);
         run(this::onRead).when(m -> m instanceof Read);
@@ -38,7 +41,7 @@ public class SynodActor extends Actor {
         String from = context.sender().path().name();
         String to = context.self().path().name();
 
-        System.out.printf("from %s to %s : %s%n", from, to, message);
+        logger.warning(String.format("from %s to %s : %s", from, to, message));
     }
 
     // adding the other knows processes

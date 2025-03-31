@@ -65,7 +65,9 @@ public class SynodActor extends Actor {
         // so it always have a value while a proposal is being processed
         currentProposal = new ProposalState(proposal);
         // who actually ask for the proposal
-        sender = sender();
+        if (sender == null)
+            sender = sender();
+
         Read read = new Read(ballot);
 
         // asking the for the values of the other known processes

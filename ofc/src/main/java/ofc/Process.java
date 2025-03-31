@@ -66,8 +66,12 @@ public class Process extends SynodActor {
         if (currentProposal != null && ballot == abort.ballot()) {
             // adding a new proposal
             // The idea is to propose until it reaches consensus
-            self().tell(new Proposal(value), sender);
             currentProposal = null;
+            try {
+                onReceive(new Proposal(value));
+            } catch (Throwable e) {
+                throw new RuntimeException(e);
+            }
         }
     }
 }

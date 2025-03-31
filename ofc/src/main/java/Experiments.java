@@ -13,8 +13,8 @@ import java.util.*;
 public class Experiments {
     public static final int[] numberOfProcesses = {3, 10, 100};
     public static final int[] numberOfProcessesThatMayFail = {1, 4, 49};
-    public static final float[] probabilityOfFail = {0, 0.1f, 1};
-    static final int[] timeUntilElect = {500, 1000, 1500, 2000};
+    public static final float[] probabilityOfFail = {0, 0.1f, 1f};
+    static final int[] timeUntilElect = {500, 1000, 1500};
 
     public static void main(String[] args) throws InterruptedException, IOException {
         List<Result> results = new LinkedList<>();

@@ -11,8 +11,9 @@ import synod.messages.Proposal;
 public class Process extends SynodActor {
     private int value = 0;
     private ActorRef sender;
-    private boolean crashed = false;
+    private float crashed = 0;
     private boolean held = false;
+    private boolean silent = false;
 
     public Process() {
         super();
@@ -26,8 +27,13 @@ public class Process extends SynodActor {
     public void onReceive(Object message) throws Throwable {
         // If a process receive is crashed it should not answer any message
         // If a process is in hold it should not process any other proposal
-        if (!crashed && !(held && message instanceof Proposal))
+        if (!silent)
+            silent = Math.random() < crashed;
+
+        if (!silent && !(held && message instanceof Proposal)) {
             super.onReceive(message);
+        }
+
     }
 
     private void onHold(Object message, ActorContext context) {
@@ -37,7 +43,7 @@ public class Process extends SynodActor {
     private void onCrash(Object message, ActorContext context) {
         // The process just crashes if the probability reaches a certain level
         Crash crash = (Crash) message;
-        crashed = Math.random() <= crash.probability();
+        crashed = crash.probability();
     }
 
     private void onLaunch(Object message, ActorContext context) {
@@ -48,7 +54,7 @@ public class Process extends SynodActor {
         Proposal proposal = new Proposal(value);
         sender = context.sender();
 
-        onProposal(proposal, context);
+        self().tell(new Proposal(value), sender);
     }
 
     @Override

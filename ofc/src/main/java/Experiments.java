@@ -38,7 +38,6 @@ public class Experiments {
 
         for (int w = 0; w < 5; w++) {
             // cleaning all states to every experiment to be executed in the same initial state
-            LatencyVerifier.clear();
             Wire.messages.clear();
             IdentityGenerator.clear();
 
@@ -57,6 +56,7 @@ public class Experiments {
             // the proposals starts
             Thread.sleep(1000);
 
+            LatencyVerifier.clear();
             // starting the proposals
             for (int i = 0; i < numberOfProcesses; i++) {
                 processes.get(i).tell(new Launch(), wire);
@@ -102,6 +102,8 @@ public class Experiments {
 
             averageLatency = averageLatency / LatencyVerifier.end.keySet().size();
             averageLatency = (float) (averageLatency / Math.pow(10, 6));
+
+            System.out.printf("average consensus : %s, first consensus %s\n", averageLatency, latency);
 
             measures.add(new LatencyMeasure(latency, averageLatency));
         }
